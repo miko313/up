@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Static File Hosting</title>
+    <style>
+        /* Same styles as above */
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📁 Static File Hosting</h1>
+            <p>Upload file HTML Anda - File disimpan di GitHub Gist</p>
+        </div>
+
+        <div class="upload-area">
+            <div class="upload-box">
+                <div class="upload-icon">📤</div>
+                <h3>Upload ke GitHub Gist</h3>
+                <p>File akan disimpan sebagai GitHub Gist dan otomatis terhapus</p>
+                <button class="upload-btn" onclick="document.getElementById('fileInput').click()">
+                    Pilih File HTML
+                </button>
+                <input type="file" id="fileInput" class="file-input" accept=".html,.htm">
+            </div>
+        </div>
+
+        <div class="alert" id="alert"></div>
+        <div class="loading" id="loading"></div>
+        <div class="file-list" style="padding: 30px;">
+            <h2>File yang Diupload</h2>
+            <div id="fileListContainer"></div>
+        </div>
+    </div>
+
+    <script>
+        // Solusi sederhana dengan localStorage
+        const fileInput = document.getElementById('fileInput');
+        
+        fileInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const content = e.target.result;
+                
+                // Simpan di localStorage dengan timestamp
+                const fileData = {
+                    name: file.name,
+                    content: content,
+                    timestamp: Date.now(),
+                    expires: Date.now() + 3600000 // 1 jam
+                };
+                
+                // Simpan ke localStorage
+                const files = JSON.parse(localStorage.getItem('htmlFiles') || '[]');
+                files.push(fileData);
+                localStorage.setItem('htmlFiles', JSON.stringify(files));
+                
+                alert('File berhasil diupload! Akan terhapus otomatis dalam 1 jam.');
+                displayFiles();
+            };
+            reader.readAsText(file);
+        });
+
+        function displayFiles() {
+            const container = document.getElementById('fileListContainer');
+            const files = JSON.parse(localStorage.getItem('htmlFiles') || '[]');
+            const now = Date.now();
+            
+            // Hapus file yang expired
+            const validFiles = files.filter(file => file.expires > now);
+            localStorage.setItem('htmlFiles', JSON.stringify(validFiles));
+            
+            if (validFiles.length === 0) {
+                container.innerHTML = '<p>Belum ada file</p>';
+                return;
+            }
+            
+            container.innerHTML = validFiles.map(file => `
+                <div class="file-item">
+                    <div class="file-info">
+                        <h4>${file.name}</h4>
+                        <p>Expires: ${new Date(file.expires).toLocaleTimeString()}</p>
+                    </div>
+                    <div class="file-actions">
+                        <button onclick="viewFile('${file.name}')">View</button>
+                        <button onclick="downloadFile('${file.name}')">Download</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function viewFile(filename) {
+            const files = JSON.parse(localStorage.getItem('htmlFiles') || '[]');
+            const file = files.find(f => f.name === filename);
+            if (file) {
+                const newWindow = window.open();
+                newWindow.document.write(file.content);
+                newWindow.document.close();
+            }
+        }
+
+        function downloadFile(filename) {
+            const files = JSON.parse(localStorage.getItem('htmlFiles') || '[]');
+            const file = files.find(f => f.name === filename);
+            if (file) {
+                const blob = new Blob([file.content], { type: 'text/html' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = filename;
+                a.click();
+                URL.revokeObjectURL(url);
+            }
+        }
+
+        // Jalankan cleanup setiap menit
+        setInterval(displayFiles, 60000);
+        displayFiles();
+    </script>
+</body>
+</html>
